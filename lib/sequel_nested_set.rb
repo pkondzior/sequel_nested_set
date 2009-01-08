@@ -1,3 +1,12 @@
+unless Object.respond_to?(:returning)
+  class Object
+    def returning(value)
+      yield(value)
+      value
+    end
+  end
+end
+
 module Sequel
   module Plugins
     # This acts provides Nested Set functionality. Nested Set is a smart way to implement
@@ -86,16 +95,108 @@ module Sequel
           roots.first
         end
         
-        def qualified_parent_column
-          "#{self.implicit_table_name}__#{self.nested_set_options[:parent_column]}".to_sym
+        def qualified_parent_column(table_name = self.implicit_table_name)
+          "#{table_name}__#{self.nested_set_options[:parent_column]}".to_sym
         end
 
-        def qualified_left_column
-          "#{self.implicit_table_name}__#{self.nested_set_options[:left_column]}".to_sym
+        def qualified_parent_column_literal(table_name = self.implicit_table_name)
+          self.dataset.literal(qualified_parent_column(table_name))
         end
 
-        def qualified_right_column
-          "#{self.implicit_table_name}__#{self.nested_set_options[:right_column]}".to_sym
+        def qualified_left_column(table_name = self.implicit_table_name)
+          "#{table_name}__#{self.nested_set_options[:left_column]}".to_sym
+        end
+
+        def qualified_left_column_literal(table_name = self.implicit_table_name)
+          self.dataset.literal(qualified_left_column(table_name))
+        end
+
+        def qualified_right_column(table_name = self.implicit_table_name)
+          "#{table_name}__#{self.nested_set_options[:right_column]}".to_sym
+        end
+
+        def qualified_right_column_literal(table_name = self.implicit_table_name)
+          self.dataset.literal(qualified_right_column(table_name))
+        end
+
+        def valid?
+          self.left_and_rights_valid? && self.no_duplicates_for_columns? && self.all_roots_valid?
+        end
+
+        def left_and_rights_valid?
+          self.left_outer_join(Client.implicit_table_name.as(:parent), self.qualified_parent_column => "parent__#{self.primary_key}".to_sym).
+            filter(({ self.qualified_left_column => nil } |
+              { self.qualified_right_column => nil } |
+              { self.qualified_parent_column => nil } |
+              (self.qualified_right_column >= self.qualified_right_column)) &
+            ((self.qualified_left_column <= self.qualified_left_column(:parent)) |
+              (self.qualified_right_column >= self.qualified_right_column(:parent)))).count == 0
+        end
+
+        def no_duplicates_for_columns?
+          # TODO: scope
+          #          scope_columns = Array(self.nested_set_options[:scope]).map do |c|
+          #            connection.quote_column_name(c)
+          #          end.push(nil).join(", ")
+          [self.qualified_left_column, self.qualified_right_column].all? do |column|
+            self.dataset.select(column, :count[column]).group(column).having(:count[column] > 1).nil?
+          end
+        end
+
+        # Wrapper for each_root_valid? that can deal with scope.
+        def all_roots_valid?
+          # TODO: scope
+#          if self.nested_set_options[:scope]
+#            roots.group(:group => scope_column_names).group_by{|record| scope_column_names.collect{|col| record.send(col.to_sym)}}.all? do |scope, grouped_roots|
+#              each_root_valid?(grouped_roots)
+#            end
+#          else
+            each_root_valid?(roots.all)
+#          end
+        end
+
+        def each_root_valid?(roots_to_validate)
+          left = right = 0
+          roots_to_validate.all? do |root|
+            returning(root.left > left && root.right > right) do
+              left = root.left
+              right = root.right
+            end
+          end
+        end
+
+        # Rebuilds the left & rights if unset or invalid.  Also very useful for converting from acts_as_tree.
+        def rebuild!
+          # Don't rebuild a valid tree.
+          return true if valid?
+
+#          scope = lambda{}
+#          if acts_as_nested_set_options[:scope]
+#            scope = lambda{|node|
+#              scope_column_names.inject(""){|str, column_name|
+#                str << "AND #{connection.quote_column_name(column_name)} = #{connection.quote(node.send(column_name.to_sym))} "
+#              }
+#            }
+#          end
+          
+#          indices = {}
+#
+#          set_left_and_rights = lambda do |node|
+#            # set left
+#            node[left_column_name] = indices[scope.call(node)] += 1
+#            # find
+#            find(:all, :conditions => ["#{quoted_parent_column_name} = ? #{scope.call(node)}", node], :order => "#{quoted_left_column_name}, #{quoted_right_column_name}, id").each{|n| set_left_and_rights.call(n) }
+#            # set right
+#            node[right_column_name] = indices[scope.call(node)] += 1
+#            node.save!
+#          end
+#
+#          # Find root node(s)
+#          root_nodes = find(:all, :conditions => "#{quoted_parent_column_name} IS NULL", :order => "#{quoted_left_column_name}, #{quoted_right_column_name}, id").each do |root_node|
+#            # setup index for this scope
+#            indices[scope.call(root_node)] ||= 0
+#            set_left_and_rights.call(root_node)
+#          end
         end
       end
 
@@ -198,7 +299,8 @@ module Sequel
 
         # Returns dataset for its immediate children
         def children
-          dataset.nested.filter(self.class.qualified_parent_column => self.id)
+          self.class.subset(:_children_subset, self.class.qualified_parent_column => self.id) unless self.respond_to?(:_children_subset)
+          dataset.nested._children_subset
         end
 
         # Returns dataset for all parents
@@ -254,6 +356,14 @@ module Sequel
           siblings.filter(self.class.qualified_left_column > left).first
         end
 
+        def move_possible?(target)
+          self != target && # Can't target self
+          same_scope?(target) && # can't be in different scopes
+          # !(left..right).include?(target.left..target.right) # this needs tested more
+          # detect impossible move
+          !((left <= target.left && right >= target.left) or (left <= target.right && right >= target.right))
+        end
+
         def to_text
           self_and_descendants.map do |node|
             "#{'*'*(node.level+1)} #{node.class.inspect} (#{node.parent_id.inspect}, #{node.left}, #{node.right})"
@@ -276,30 +386,89 @@ module Sequel
           diff = self.right - self.left + 1
 
           #TODO: implemente :dependent option
-#          delete_method = acts_as_nested_set_options[:dependent] == :destroy ?
-#            :destroy_all : :delete_all
+          #          delete_method = acts_as_nested_set_options[:dependent] == :destroy ?
+          #            :destroy_all : :delete_all
 
           #TODO: implement prune method
-#          self.class.base_class.transaction do
-#            nested_set_scope.send(delete_method,
-#              ["#{quoted_left_column_name} > ? AND #{quoted_right_column_name} < ?",
-#                left, right]
-#            )
-#            nested_set_scope.update_all(
-#              ["#{quoted_left_column_name} = (#{quoted_left_column_name} - ?)", diff],
-#              ["#{quoted_left_column_name} >= ?", right]
-#            )
-#            nested_set_scope.update_all(
-#              ["#{quoted_right_column_name} = (#{quoted_right_column_name} - ?)", diff],
-#              ["#{quoted_right_column_name} >= ?", right]
-#            )
-#          end
+          #          self.class.base_class.transaction do
+          #            nested_set_scope.send(delete_method,
+          #              ["#{quoted_left_column_name} > ? AND #{quoted_right_column_name} < ?",
+          #                left, right]
+          #            )
+          #            nested_set_scope.update_all(
+          #              ["#{quoted_left_column_name} = (#{quoted_left_column_name} - ?)", diff],
+          #              ["#{quoted_left_column_name} >= ?", right]
+          #            )
+          #            nested_set_scope.update_all(
+          #              ["#{quoted_right_column_name} = (#{quoted_right_column_name} - ?)", diff],
+          #              ["#{quoted_right_column_name} >= ?", right]
+          #            )
+          #          end
         end
 
         # reload left, right, and parent
         def reload_nested_set
           reload(:select => "#{quoted_left_column_name}, " +
-            "#{quoted_right_column_name}, #{quoted_parent_column_name}")
+              "#{quoted_right_column_name}, #{quoted_parent_column_name}")
+        end
+
+        def move_to(target, position)
+          raise Error, "You cannot move a new node" if self.new?
+#          #TODO: add callback
+          db.transaction do
+            unless position == :root || self.move_possible?(target)
+              raise Error, "Impossible move, target node cannot be inside moved tree."
+            end
+
+            bound = case position
+              when :child;  target.right
+              when :left;   target.left
+              when :right;  target.right + 1
+              when :root;   1
+              else raise ActiveRecord::ActiveRecordError, "Position should be :child, :left, :right or :root ('#{position}' received)."
+            end
+
+            if bound > self.right
+              bound = bound - 1
+              other_bound = self.right + 1
+            else
+              other_bound = self.left - 1
+            end
+
+            # there would be no change
+            return if bound == self.right || bound == self.left
+
+            # we have defined the boundaries of two non-overlapping intervals,
+            # so sorting puts both the intervals and their boundaries in order
+            a, b, c, d = [self.left, self.right, bound, other_bound].sort
+
+            new_parent = case position
+              when :child;  target.id
+              when :root;   nil
+              else          target.right
+            end
+
+            self.dataset.update_sql(
+               "#{self.class.qualified_left_column_literal} = CASE " +
+                "WHEN #{self.class.qualified_left_column_literal} BETWEEN #{a} AND #{b} " +
+                  "THEN #{self.class.qualified_left_column_literal} + #{a} - #{b} " +
+                "WHEN #{self.class.qualified_left_column_literal} BETWEEN #{a} AND #{b} " +
+                  "THEN #{self.class.qualified_left_column_literal} + #{a} - #{c}" +
+                "ELSE #{self.class.qualified_left_column} END, " +
+              "#{self.class.qualified_right_column_literal} = CASE " +
+                "WHEN #{self.class.qualified_right_column_literal} BETWEEN #{a} AND #{b} " +
+                  "THEN #{self.class.qualified_right_column_literal} + #{d} - #{b} " +
+                "WHEN #{self.class.qualified_right_column_literal} BETWEEN #{c} AND #{d} " +
+                  "THEN #{self.class.qualified_right_column_literal} + #{a} - #{c} " +
+                "ELSE #{self.class.qualified_right_column_literal} END, " +
+              "#{self.class.qualified_parent_column_literal} = CASE " +
+                "WHEN #{self.class.qualified_parent_column_literal} = #{self.id} THEN #{new_parent} " +
+                "ELSE #{self.class.qualified_parent_column_literal} END"
+            )
+            target.refresh if target
+            self.refresh
+            #TODO: add after_move
+          end
         end
       end
     end
