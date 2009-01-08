@@ -2,12 +2,12 @@
 # Constants
 ##############################################################################
  
-PluginName = "sequel_timestamped"
-Version = "0.0.1"
-Title = "Timestamped Sequel Plugin"
-Summary = "Sequel Plugin"
+PluginName = "sequel_nested_set"
+Version = "0.5"
+Title = "Nested Set Sequel Plugin"
+Summary = "Sequel Nested Set Plugin"
 Authors = "Brian Cooke"
-Emails = "cookebri@gmail.com"
+Emails = "kondzior.p@gmail.com"
 Homepage = "http://sequel.rubyforge.org"
  
 ##############################################################################

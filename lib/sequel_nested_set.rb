@@ -1,7 +1,27 @@
 module Sequel
   module Plugins
+    # This acts provides Nested Set functionality. Nested Set is a smart way to implement
+    # an _ordered_ tree, with the added feature that you can select the children and all of their
+    # descendants with a single query. The drawback is that insertion or move need some complex
+    # sql queries. But everything is done here by this module!
+    #
+    # Nested sets are appropriate each time you want either an orderd tree (menus,
+    # commercial categories) or an efficient way of querying big trees (threaded posts).
+    #
+    # == API
+    #
+    #   # adds a new item at the "end" of the tree, i.e. with child.left = max(tree.right)+1
+    #   child = MyClass.new(:name => "child1")
+    #   child.save
+    #   # now move the item to its right place
+    #   child.move_to_child_of my_item
+    #
+    # You can pass an id or an object to:
+    # * <tt>#move_to_child_of</tt>
+    # * <tt>#move_to_right_of</tt>
+    # * <tt>#move_to_left_of</tt>
+    #
     module NestedSet
-      # Apply the plugin to the model.
       def self.apply(model, options = {})
         options = {
           :parent_column => :parent_id,
