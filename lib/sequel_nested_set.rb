@@ -55,6 +55,9 @@ module Sequel
           attr_accessor :nested_set_options
         end
         model.nested_set_options = options
+
+        model.before_create { set_default_left_and_right }
+        model.before_destroy { prune_from_tree }
       end
 
       module DatasetMethods
@@ -77,6 +80,12 @@ module Sequel
       end
 
       module ClassMethods
+
+        # Returns the first root
+        def root
+          roots.first
+        end
+        
         def qualified_parent_column
           "#{self.implicit_table_name}__#{self.nested_set_options[:parent_column]}".to_sym
         end
@@ -258,6 +267,39 @@ module Sequel
           # adds the new node to the right of all existing nodes
           self.left = maxright + 1
           self.right = maxright + 2
+        end
+
+        # Prunes a branch off of the tree, shifting all of the elements on the right
+        # back to the left so the counts still work.
+        def prune_from_tree
+          return if self.right.nil? || self.left.nil?
+          diff = self.right - self.left + 1
+
+          #TODO: implemente :dependent option
+#          delete_method = acts_as_nested_set_options[:dependent] == :destroy ?
+#            :destroy_all : :delete_all
+
+          #TODO: implement prune method
+#          self.class.base_class.transaction do
+#            nested_set_scope.send(delete_method,
+#              ["#{quoted_left_column_name} > ? AND #{quoted_right_column_name} < ?",
+#                left, right]
+#            )
+#            nested_set_scope.update_all(
+#              ["#{quoted_left_column_name} = (#{quoted_left_column_name} - ?)", diff],
+#              ["#{quoted_left_column_name} >= ?", right]
+#            )
+#            nested_set_scope.update_all(
+#              ["#{quoted_right_column_name} = (#{quoted_right_column_name} - ?)", diff],
+#              ["#{quoted_right_column_name} >= ?", right]
+#            )
+#          end
+        end
+
+        # reload left, right, and parent
+        def reload_nested_set
+          reload(:select => "#{quoted_left_column_name}, " +
+            "#{quoted_right_column_name}, #{quoted_parent_column_name}")
         end
       end
     end

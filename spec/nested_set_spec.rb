@@ -34,8 +34,8 @@ describe "Sequel Nested Set Class" do
     roots.should == Client.filter(:parent_id => nil).all
     roots.should == [@root, @root2]
   end
-
- it "should have root that will be root? => true" do
+  
+  it "should have root that will be root? => true" do
     Client.roots.first.root?.should be_true
   end
 
@@ -43,6 +43,10 @@ describe "Sequel Nested Set Class" do
     leaves = Client.leaves.all
     leaves.should == Client.nested.filter(:rgt - :lft => 1).all
     leaves.should == [@node1, @node2_1, @node3, @root2]
+  end
+
+  it "should have root" do
+    Client.root.should == @root
   end
 end
 

@@ -1,3 +1,4 @@
 - Add configuration options
 - Add move, rebuild! and integration check methods, and specs for methods + full code covarage
 - Do more specs for scoped nested_set
+- Add move hooks (before_,after_)
