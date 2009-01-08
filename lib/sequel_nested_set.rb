@@ -22,6 +22,23 @@ module Sequel
     # * <tt>#move_to_left_of</tt>
     #
     module NestedSet
+      # Configuration options are:
+      #
+      # * +:parent_column+ - specifies the column name to use for keeping the position integer (default: :parent_id)
+      # * +:left_column+ - column name for left boundry data, default :lft
+      # * +:right_column+ - column name for right boundry data, default :rgt
+      # * +:scope+ - restricts what is to be considered a list. Given a symbol, it'll attach "_id"
+      #   (if it hasn't been already) and use that as the foreign key restriction. You
+      #   can also pass an array to scope by multiple attributes.
+      #   Example: <tt>is :nested_set, { :scope => [:notable_id, :notable_type] }</tt>
+      # * +:dependent+ - behavior for cascading destroy. If set to :destroy, all the
+      #   child objects are destroyed alongside this object by calling their destroy
+      #   method. If set to :delete_all (default), all the child objects are deleted
+      #   without calling their destroy method.
+      #
+      # See Sequle::Plugins::NestedSet::ClassMethods for a list of class methods and
+      # Sequle::Plugins::NestedSet::InstanceMethods for a list of instance methods added
+      # to acts_as_nested_set models
       def self.apply(model, options = {})
         options = {
           :parent_column => :parent_id,
@@ -41,6 +58,9 @@ module Sequel
       end
 
       module DatasetMethods
+        # All nested set queries should use this nested_set_scope, which performs finds on
+        # the base ActiveRecord class, using the :scope declared in the acts_as_nested_set
+        # declaration.
         def nested_scope
           order(self.model_classes[nil].qualified_left_column)
         end
