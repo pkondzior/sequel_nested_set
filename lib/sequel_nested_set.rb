@@ -58,7 +58,7 @@ module Sequel
       end
 
       module DatasetMethods
-        # All nested set queries should use this nested, which returns Dataset that provides
+        # All nested set queries should use this nested dataset method, which returns Dataset that provides
         # proper :scope which you can configure on is :nested, { :scope => ... }
         # declaration in your Sequel::Model
         def nested
