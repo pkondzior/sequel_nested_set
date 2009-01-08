@@ -41,7 +41,7 @@ describe "Sequel Nested Set Class" do
 
   it "should have all leaves" do
     leaves = Client.leaves.all
-    leaves.should == Client.nested_scope.filter(:rgt - :lft => 1).all
+    leaves.should == Client.nested.filter(:rgt - :lft => 1).all
     leaves.should == [@node1, @node2_1, @node3, @root2]
   end
 end

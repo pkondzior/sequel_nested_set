@@ -58,19 +58,19 @@ module Sequel
       end
 
       module DatasetMethods
-        # All nested set queries should use this nested_set_scope, which performs finds on
-        # the base ActiveRecord class, using the :scope declared in the acts_as_nested_set
-        # declaration.
-        def nested_scope
+        # All nested set queries should use this nested, which returns Dataset that provides
+        # proper :scope which you can configure on is :nested, { :scope => ... }
+        # declaration in your Sequel::Model
+        def nested
           order(self.model_classes[nil].qualified_left_column)
         end
 
         def roots
-          nested_scope.filter(self.model_classes[nil].qualified_parent_column => nil)
+          nested.filter(self.model_classes[nil].qualified_parent_column => nil)
         end
 
         def leaves
-          nested_scope.filter(self.model_classes[nil].qualified_right_column - self.model_classes[nil].qualified_left_column => 1)
+          nested.filter(self.model_classes[nil].qualified_right_column - self.model_classes[nil].qualified_left_column => 1)
         end
       end
 
@@ -162,7 +162,7 @@ module Sequel
 
         # Returns the immediate parent
         def parent
-          dataset.nested_scope.filter(self.primary_key => self.parent_id).first if self.parent_id
+          dataset.nested.filter(self.primary_key => self.parent_id).first if self.parent_id
         end
 
         # Returns the dataset for all parent nodes and self
@@ -172,22 +172,22 @@ module Sequel
 
         # Returns the dataset for all children of the parent, including self
         def self_and_siblings
-          dataset.nested_scope.filter(self.class.qualified_parent_column  => self.parent_id)
+          dataset.nested.filter(self.class.qualified_parent_column  => self.parent_id)
         end
 
         # Returns dataset for itself and all of its nested children
         def self_and_descendants
-          dataset.nested_scope.filter((self.class.qualified_left_column >= left) & (self.class.qualified_right_column <= right))
+          dataset.nested.filter((self.class.qualified_left_column >= left) & (self.class.qualified_right_column <= right))
         end
 
         # Filter for dataset that will exclude self object
         def without_self(dataset)
-          dataset.nested_scope.filter(~{self.primary_key => self.id})
+          dataset.nested.filter(~{self.primary_key => self.id})
         end
 
         # Returns dataset for its immediate children
         def children
-          dataset.nested_scope.filter(self.class.qualified_parent_column => self.id)
+          dataset.nested.filter(self.class.qualified_parent_column => self.id)
         end
 
         # Returns dataset for all parents
@@ -252,7 +252,7 @@ module Sequel
         protected
         # on creation, set automatically lft and rgt to the end of the tree
         def set_default_left_and_right
-          maxright = dataset.nested_scopemax(self.class.qualified_right_column) || 0
+          maxright = dataset.nestedmax(self.class.qualified_right_column) || 0
           # adds the new node to the right of all existing nodes
           self.left = maxright + 1
           self.right = maxright + 2
