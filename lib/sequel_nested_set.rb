@@ -65,10 +65,12 @@ module Sequel
           order(self.model_classes[nil].qualified_left_column)
         end
 
+        # Returns dataset for all root nodes
         def roots
           nested.filter(self.model_classes[nil].qualified_parent_column => nil)
         end
 
+        # Returns dataset for all of nodes which do not have children
         def leaves
           nested.filter(self.model_classes[nil].qualified_right_column - self.model_classes[nil].qualified_left_column => 1)
         end
