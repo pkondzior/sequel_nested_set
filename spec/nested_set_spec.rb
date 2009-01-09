@@ -2,7 +2,7 @@ require File.join(File.dirname(__FILE__), "spec_helper")
 
 describe "Sequel Nested Set Class" do
   before(:each) do
-    ClientMock.reset
+    prepare_nested_set_data
     @root = Client.filter(:name  => 'Top Level').first
     @node1 = Client.filter(:name  => 'Child 1').first
     @node2 = Client.filter(:name  => 'Child 2').first
@@ -53,7 +53,7 @@ end
 describe "Sequel Nested Set Instance" do
 
   before(:each) do
-    ClientMock.reset
+    prepare_nested_set_data
     @root = Client.filter(:name  => 'Top Level').first
     @node1 = Client.filter(:name  => 'Child 1').first
     @node2 = Client.filter(:name  => 'Child 2').first

@@ -22,17 +22,15 @@ end
 
 Client.create_table
 
-class ClientMock
-  def self.reset
-    Client.drop_table if Client.table_exists?
-    Client.create_table!
-    DB[:clients] << {"name"=>"Top Level 2", "lft"=>11, "id"=>6, "rgt"=>12}
-    DB[:clients] << {"name"=>"Child 2.1", "lft"=>5, "id"=>4, "parent_id"=>3, "rgt"=>6}
-    DB[:clients] << {"name"=>"Child 1", "lft"=>2, "id"=>2, "parent_id"=>1, "rgt"=>3}
-    DB[:clients] << {"name"=>"Top Level", "lft"=>1, "id"=>1, "rgt"=>10}
-    DB[:clients] << {"name"=>"Child 2", "lft"=>4, "id"=>3, "parent_id"=>1, "rgt"=>7}
-    DB[:clients] << {"name"=>"Child 3", "lft"=>8, "id"=>5, "parent_id"=>1, "rgt"=>9}
-  end
+def prepare_nested_set_data
+  Client.drop_table if Client.table_exists?
+  Client.create_table!
+  DB[:clients] << {"name"=>"Top Level 2", "lft"=>11, "id"=>6, "rgt"=>12}
+  DB[:clients] << {"name"=>"Child 2.1", "lft"=>5, "id"=>4, "parent_id"=>3, "rgt"=>6}
+  DB[:clients] << {"name"=>"Child 1", "lft"=>2, "id"=>2, "parent_id"=>1, "rgt"=>3}
+  DB[:clients] << {"name"=>"Top Level", "lft"=>1, "id"=>1, "rgt"=>10}
+  DB[:clients] << {"name"=>"Child 2", "lft"=>4, "id"=>3, "parent_id"=>1, "rgt"=>7}
+  DB[:clients] << {"name"=>"Child 3", "lft"=>8, "id"=>5, "parent_id"=>1, "rgt"=>9}
 end
 
 
