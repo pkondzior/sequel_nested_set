@@ -3,7 +3,7 @@
 ##############################################################################
  
 PluginName = "sequel_nested_set"
-Version = "0.5"
+Version = "0.9"
 Title = "Nested Set Sequel Plugin"
 Summary = "Sequel Nested Set Plugin"
 Authors = "Brian Cooke"

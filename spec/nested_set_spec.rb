@@ -462,45 +462,40 @@ describe "Sequel Nested Set Instance" do
     Client.left_and_rights_valid?.should be_false
   end
 
-#
-#  def test_left_and_rights_valid_with_equal
-#    assert Category.left_and_rights_valid?
-#    categories(:top_level_2)[:lft] = categories(:top_level_2)[:rgt]
-#    categories(:top_level_2).save(false)
-#    assert !Category.left_and_rights_valid?
-#  end
-#
-#  def test_left_and_rights_valid_with_left_equal_to_parent
-#    assert Category.left_and_rights_valid?
-#    categories(:child_2)[:lft] = categories(:top_level)[:lft]
-#    categories(:child_2).save(false)
-#    assert !Category.left_and_rights_valid?
-#  end
-#
-#  def test_left_and_rights_valid_with_right_equal_to_parent
-#    assert Category.left_and_rights_valid?
-#    categories(:child_2)[:rgt] = categories(:top_level)[:rgt]
-#    categories(:child_2).save(false)
-#    assert !Category.left_and_rights_valid?
-#  end
-#
-#  def test_moving_dirty_objects_doesnt_invalidate_tree
-#    r1 = Category.create
-#    r2 = Category.create
-#    r3 = Category.create
-#    r4 = Category.create
-#    nodes = [r1, r2, r3, r4]
-#
-#    r2.move_to_child_of(r1)
-#    assert Category.valid?
-#
-#    r3.move_to_child_of(r1)
-#    assert Category.valid?
-#
-#    r4.move_to_child_of(r2)
-#    assert Category.valid?
-#  end
-#
+  it "should return true for left_and_rights_valid? when node lft is equal for root lft" do
+    Client.left_and_rights_valid?.should be_true
+    @node2[:lft] = @root[:lft]
+    @node2.save
+    Client.left_and_rights_valid?.should be_false
+  end
+
+  it "should return true for left_and_rights_valid? when node rgt is equal for root rgt" do
+    Client.left_and_rights_valid?.should be_true
+    @node2[:rgt] = @root[:rgt]
+    @node2.save
+    Client.left_and_rights_valid?.should be_false
+  end
+
+  it "should be valid after moving dirty nodes" do
+    n1 = Client.create
+    n2 = Client.create
+    n3 = Client.create
+    n4 = Client.create
+
+    n2.move_to_child_of(n1)
+    Client.valid?.should be_true
+
+    n3.move_to_child_of(n1)
+    Client.valid?.should be_true
+
+    n4.move_to_child_of(n2)
+    Client.valid?.should be_true
+  end
+
+  it "should be no duplicates for different scope" do
+
+  end
+
 #  def test_multi_scoped_no_duplicates_for_columns?
 #    assert_nothing_raised do
 #      Note.no_duplicates_for_columns?

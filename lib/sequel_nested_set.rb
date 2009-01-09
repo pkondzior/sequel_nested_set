@@ -125,21 +125,20 @@ module Sequel
 
         def left_and_rights_valid?
           self.left_outer_join(Client.implicit_table_name.as(:parent), self.qualified_parent_column => "parent__#{self.primary_key}".to_sym).
-            filter(({ self.qualified_left_column => nil } |
+            filter({ self.qualified_left_column => nil } |
               { self.qualified_right_column => nil } |
-              (self.qualified_left_column >= self.qualified_right_column)) |
-            ({ self.qualified_parent_column => nil } & (self.qualified_left_column <= self.qualified_left_column(:parent)) |
-              (self.qualified_right_column >= self.qualified_right_column(:parent)))).count == 0
+              (self.qualified_left_column >= self.qualified_right_column) |
+            (~{ self.qualified_parent_column => nil } & ((self.qualified_left_column <= self.qualified_left_column(:parent)) |
+              (self.qualified_right_column >= self.qualified_right_column(:parent))))).count == 0
         end
 
         def left_and_rights_valid_dataset?
           self.left_outer_join(Client.implicit_table_name.as(:parent), self.qualified_parent_column => "parent__#{self.primary_key}".to_sym).
-            filter(({ self.qualified_left_column => nil } |
+            filter({ self.qualified_left_column => nil } |
               { self.qualified_right_column => nil } |
-              { self.qualified_parent_column => nil } |
-              (self.qualified_right_column >= self.qualified_right_column)) |
-            ((self.qualified_left_column <= self.qualified_left_column(:parent)) &
-              (self.qualified_right_column >= self.qualified_right_column(:parent))))
+              (self.qualified_left_column >= self.qualified_right_column) |
+            (~{ self.qualified_parent_column => nil } & ((self.qualified_left_column <= self.qualified_left_column(:parent)) |
+              (self.qualified_right_column >= self.qualified_right_column(:parent)))))
         end
 
         def no_duplicates_for_columns?
