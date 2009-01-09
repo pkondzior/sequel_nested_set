@@ -273,19 +273,110 @@ describe "Sequel Nested Set Instance" do
     @root.to_text.should == "* Client (nil, 1, 10)\n** Client (1, 2, 3)\n** Client (1, 4, 7)\n*** Client (3, 5, 6)\n** Client (1, 8, 9)"
   end
 
-  it "should node2 be able to move left" do
+  it "should node2 be able to move to the left" do
     @node2.move_left
     @node2.left_sibling.should be_nil
     @node2.right_sibling.should == @node1.refresh
     Client.valid?.should be_true
   end
 
-  it "should node2 be able to move right" do
+  it "should node2 be able to move to the right" do
     @node2.move_right
     @node2.right_sibling.should be_nil
     @node2.left_sibling.should == @node3.refresh
     Client.valid?.should be_true
   end
+
+  it "should node3 be able to move to the left of node1" do
+    @node3.move_to_left_of(@node1)
+    @node3.left_sibling.should be_nil
+    @node3.right_sibling.should == @node1.refresh
+    Client.valid?.should be_true
+  end
+
+  it "should node1 be able to move to the right of node1" do
+    @node1.move_to_right_of(@node3)
+    @node1.right_sibling.should be_nil
+    @node1.left_sibling.should == @node3.refresh
+    Client.valid?.should be_true
+  end
+  
+  it "should node2 be able to became root" do
+    @node2.move_to_root
+    @node2.parent.should be_nil
+    @node2.level.should == 0
+    @node2_1.level.should == 1
+    @node2.left == 1
+    @node2.right == 4
+    Client.valid?.should be_true
+  end
+  
+  it "should node1 be able to move to child of node3" do
+    @node1.move_to_child_of(@node3)
+    @node1.parent_id.should == @node3.id
+    Client.valid?.should be_true
+  end
+
+  it "should be able to move new node to the end of root children" do
+    child = Client.create(:name => 'New Child')
+    child.move_to_child_of(@root)
+    @root.children.last.should == child
+    Client.valid?.should be_true
+  end
+  
+  it "should be able to move node2 as child of node1" do
+    @node2.left.should == 4
+    @node2.right.should == 7
+    @node1.left.should == 2
+    @node1.right.should == 3
+    @node2.move_to_child_of(@node1)
+    @node2.parent_id.should == @node1.id
+    Client.valid?.should be_true
+    @node2.left.should == 3
+    @node2.right.should == 6
+    @node1.left.should == 2
+    @node1.right.should == 7
+  end
+
+  it "should be able to move root node to child of new node" do
+    @root2.left.should == 11
+    @root2.right.should == 12
+
+    root3 = Client.create(:name => 'New Root')
+    root3.left.should == 13
+    root3.right.should == 14
+
+    @root2.move_to_child_of(root3)
+
+    Client.valid?.should be_true
+    @root2.parent_id.should == root3.id
+
+    @root2.left.should == 12
+    @root2.right.should == 13
+
+    root3.left.should == 11
+    root3.right.should == 14
+  end
+
+#  def test_slightly_difficult_move_to_child_of
+#    assert_equal 11, categories(:top_level_2).left
+#    assert_equal 12, categories(:top_level_2).right
+#
+#    # create a new top-level node and move single-node top-level tree inside it.
+#    new_top = Category.create(:name => 'New Top')
+#    assert_equal 13, new_top.left
+#    assert_equal 14, new_top.right
+#
+#    categories(:top_level_2).move_to_child_of(new_top)
+#
+#    assert Category.valid?
+#    assert_equal new_top.id, categories(:top_level_2).parent_id
+#
+#    assert_equal 12, categories(:top_level_2).left
+#    assert_equal 13, categories(:top_level_2).right
+#    assert_equal 11, new_top.left
+#    assert_equal 14, new_top.right
+#  end
 
 end
 

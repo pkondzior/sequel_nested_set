@@ -406,7 +406,7 @@ module Sequel
         protected
         # on creation, set automatically lft and rgt to the end of the tree
         def set_default_left_and_right
-          maxright = dataset.nestedmax(self.class.qualified_right_column) || 0
+          maxright = dataset.nested.max(self.class.qualified_right_column).to_i || 0
           # adds the new node to the right of all existing nodes
           self.left = maxright + 1
           self.right = maxright + 2
@@ -479,18 +479,18 @@ module Sequel
 
             new_parent = case position
               when :child;  target.id
-              when :root;   nil
+              when :root;   'NULL'
               else          target.parent_id
             end
 
             # TODO : scope stuff for update
             self.dataset.update(
-               "#{self.class.qualified_left_column_literal} = CASE " +
+               "#{self.class.qualified_left_column_literal} = (CASE " +
                 "WHEN #{self.class.qualified_left_column_literal} BETWEEN #{a} AND #{b} " +
                   "THEN #{self.class.qualified_left_column_literal} + #{d} - #{b} " +
                 "WHEN #{self.class.qualified_left_column_literal} BETWEEN #{c} AND #{d} " +
                   "THEN #{self.class.qualified_left_column_literal} + #{a} - #{c} " +
-                "ELSE #{self.class.qualified_left_column_literal} END, " +
+                "ELSE #{self.class.qualified_left_column_literal} END), " +
               "#{self.class.qualified_right_column_literal} = (CASE " +
                 "WHEN #{self.class.qualified_right_column_literal} BETWEEN #{a} AND #{b} " +
                   "THEN #{self.class.qualified_right_column_literal} + #{d} - #{b} " +
