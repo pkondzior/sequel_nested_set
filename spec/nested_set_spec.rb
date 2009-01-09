@@ -357,25 +357,206 @@ describe "Sequel Nested Set Instance" do
     root3.left.should == 11
     root3.right.should == 14
   end
+  
+  it "should be able to move root node to child of new node" do
+    @root.left.should == 1
+    @root.right.should == 10
+    @node2_1.left.should == 5
+    @node2_1.right.should == 6
+    
+    root3 = Client.create(:name => 'New Root')
+    @root.move_to_child_of(root3)
+    Client.valid?.should be_true
+    @root.parent_id.should == root3.id
 
-#  def test_slightly_difficult_move_to_child_of
-#    assert_equal 11, categories(:top_level_2).left
-#    assert_equal 12, categories(:top_level_2).right
+    @root.left.should == 4
+    @root.right.should == 13
+
+    @node2_1.refresh
+    @node2_1.left.should == 8
+    @node2_1.right.should == 9
+  end
+
+  it "should be able to rebuild whole tree" do
+    node1 = Client.create(:name => 'Node-1')
+    node2 = Client.create(:name => 'Node-2')
+    node3 = Client.create(:name => 'Node-3')
+
+    node2.move_to_child_of node1
+    node3.move_to_child_of node1
+
+    output = Client.roots.last.to_text
+    Client.update('lft = null, rgt = null')
+    Client.rebuild!
+
+    Client.roots.last.to_text.should == output
+  end
+  
+  it "should be invalid which lft = null" do
+    Client.valid?.should be_true
+    Client.update("lft = NULL")
+    Client.valid?.should be_false
+  end
+
+  it "should be invalid which rgt = null" do
+    Client.valid?.should be_true
+    Client.update("rgt = NULL")
+    Client.valid?.should be_false
+  end
+  
+  it "should be valid with mising intermediate node" do
+    Client.valid?.should be_true
+    @node2.destroy
+    Client.valid?.should be_true
+  end
+  
+  it "should be invalid with overlapping right nodes" do
+    Client.valid?.should be_true
+    @root2[:lft] = 0
+    @root2.save
+    Client.valid?.should be_false
+  end
+
+  it "should be able to rebild" do
+    Client.valid?.should be_true
+    before_text = Client.root.to_text
+    Client.update('lft = NULL, rgt = NULL')
+    Client.rebuild!
+    Client.valid?.should be_true
+    before_text.should == Client.root.to_text
+  end
+
+  it "shold be able to move for sibbling" do
+    @node2.move_possible?(@node1).should be_true
+  end
+
+  it "shold not be able to move for itself" do
+    @root.move_possible?(@root).should be_false
+  end
+
+  it "should not be able to move for parent" do
+    @root.descendants.each do |descendant_node|
+      @root.move_possible?(descendant_node).should be_false
+      descendant_node.move_possible?(@root).should be_true
+    end
+  end
+
+  it "should be correct is_or_is_ancestor_of?" do
+    [@node1, @node2, @node2_1, @node3].each do |node|
+      @root.is_or_is_ancestor_of?(node).should be_true
+    end
+    @root.is_or_is_ancestor_of?(@root2).should be_false
+  end
+  
+  it "should be invalid left_and_rights_valid? for nil lefts" do
+    Client.left_and_rights_valid?.should be_true
+    @node2[:lft] = nil
+    @node2.save
+    Client.left_and_rights_valid?.should be_false
+  end
+
+  it "should be invalid left_and_rights_valid? for nil rights" do
+    Client.left_and_rights_valid?.should be_true
+    @node2[:rgt] = nil
+    @node2.save
+    Client.left_and_rights_valid?.should be_false
+  end
+
 #
-#    # create a new top-level node and move single-node top-level tree inside it.
-#    new_top = Category.create(:name => 'New Top')
-#    assert_equal 13, new_top.left
-#    assert_equal 14, new_top.right
+#  def test_left_and_rights_valid_with_equal
+#    assert Category.left_and_rights_valid?
+#    categories(:top_level_2)[:lft] = categories(:top_level_2)[:rgt]
+#    categories(:top_level_2).save(false)
+#    assert !Category.left_and_rights_valid?
+#  end
 #
-#    categories(:top_level_2).move_to_child_of(new_top)
+#  def test_left_and_rights_valid_with_left_equal_to_parent
+#    assert Category.left_and_rights_valid?
+#    categories(:child_2)[:lft] = categories(:top_level)[:lft]
+#    categories(:child_2).save(false)
+#    assert !Category.left_and_rights_valid?
+#  end
 #
+#  def test_left_and_rights_valid_with_right_equal_to_parent
+#    assert Category.left_and_rights_valid?
+#    categories(:child_2)[:rgt] = categories(:top_level)[:rgt]
+#    categories(:child_2).save(false)
+#    assert !Category.left_and_rights_valid?
+#  end
+#
+#  def test_moving_dirty_objects_doesnt_invalidate_tree
+#    r1 = Category.create
+#    r2 = Category.create
+#    r3 = Category.create
+#    r4 = Category.create
+#    nodes = [r1, r2, r3, r4]
+#
+#    r2.move_to_child_of(r1)
 #    assert Category.valid?
-#    assert_equal new_top.id, categories(:top_level_2).parent_id
 #
-#    assert_equal 12, categories(:top_level_2).left
-#    assert_equal 13, categories(:top_level_2).right
-#    assert_equal 11, new_top.left
-#    assert_equal 14, new_top.right
+#    r3.move_to_child_of(r1)
+#    assert Category.valid?
+#
+#    r4.move_to_child_of(r2)
+#    assert Category.valid?
+#  end
+#
+#  def test_multi_scoped_no_duplicates_for_columns?
+#    assert_nothing_raised do
+#      Note.no_duplicates_for_columns?
+#    end
+#  end
+#
+#  def test_multi_scoped_all_roots_valid?
+#    assert_nothing_raised do
+#      Note.all_roots_valid?
+#    end
+#  end
+#
+#  def test_multi_scoped
+#    note1 = Note.create!(:body => "A", :notable_id => 2, :notable_type => 'Category')
+#    note2 = Note.create!(:body => "B", :notable_id => 2, :notable_type => 'Category')
+#    note3 = Note.create!(:body => "C", :notable_id => 2, :notable_type => 'Default')
+#
+#    assert_equal [note1, note2], note1.self_and_siblings
+#    assert_equal [note3], note3.self_and_siblings
+#  end
+#
+#  def test_multi_scoped_rebuild
+#    root = Note.create!(:body => "A", :notable_id => 3, :notable_type => 'Category')
+#    child1 = Note.create!(:body => "B", :notable_id => 3, :notable_type => 'Category')
+#    child2 = Note.create!(:body => "C", :notable_id => 3, :notable_type => 'Category')
+#
+#    child1.move_to_child_of root
+#    child2.move_to_child_of root
+#
+#    Note.update_all('lft = null, rgt = null')
+#    Note.rebuild!
+#
+#    assert_equal Note.roots.find_by_body('A'), root
+#    assert_equal [child1, child2], Note.roots.find_by_body('A').children
+#  end
+#
+#  def test_same_scope_with_multi_scopes
+#    assert_nothing_raised do
+#      notes(:scope1).same_scope?(notes(:child_1))
+#    end
+#    assert notes(:scope1).same_scope?(notes(:child_1))
+#    assert notes(:child_1).same_scope?(notes(:scope1))
+#    assert !notes(:scope1).same_scope?(notes(:scope2))
+#  end
+#
+#  def test_quoting_of_multi_scope_column_names
+#    assert_equal ["\"notable_id\"", "\"notable_type\""], Note.quoted_scope_column_names
+#  end
+#
+#  def test_equal_in_same_scope
+#    assert_equal notes(:scope1), notes(:scope1)
+#    assert_not_equal notes(:scope1), notes(:child_1)
+#  end
+#
+#  def test_equal_in_different_scopes
+#    assert_not_equal notes(:scope1), notes(:scope2)
 #  end
 
 end

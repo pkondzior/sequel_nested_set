@@ -33,5 +33,7 @@ def prepare_nested_set_data
   DB[:clients] << {"name"=>"Child 3", "lft"=>8, "id"=>5, "parent_id"=>1, "rgt"=>9}
 end
 
+prepare_nested_set_data
+
 
 

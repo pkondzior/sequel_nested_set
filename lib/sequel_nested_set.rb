@@ -120,7 +120,6 @@ module Sequel
         end
 
         def valid?
-          DB.logger.info { "#{self.left_and_rights_valid?} && #{self.no_duplicates_for_columns?} && #{self.all_roots_valid?}" }
           self.left_and_rights_valid? && self.no_duplicates_for_columns? && self.all_roots_valid?
         end
 
@@ -128,10 +127,19 @@ module Sequel
           self.left_outer_join(Client.implicit_table_name.as(:parent), self.qualified_parent_column => "parent__#{self.primary_key}".to_sym).
             filter(({ self.qualified_left_column => nil } |
               { self.qualified_right_column => nil } |
-              { self.qualified_parent_column => nil } |
-              (self.qualified_right_column >= self.qualified_right_column)) &
-            ((self.qualified_left_column <= self.qualified_left_column(:parent)) |
+              (self.qualified_left_column >= self.qualified_right_column)) |
+            ({ self.qualified_parent_column => nil } & (self.qualified_left_column <= self.qualified_left_column(:parent)) |
               (self.qualified_right_column >= self.qualified_right_column(:parent)))).count == 0
+        end
+
+        def left_and_rights_valid_dataset?
+          self.left_outer_join(Client.implicit_table_name.as(:parent), self.qualified_parent_column => "parent__#{self.primary_key}".to_sym).
+            filter(({ self.qualified_left_column => nil } |
+              { self.qualified_right_column => nil } |
+              { self.qualified_parent_column => nil } |
+              (self.qualified_right_column >= self.qualified_right_column)) |
+            ((self.qualified_left_column <= self.qualified_left_column(:parent)) &
+              (self.qualified_right_column >= self.qualified_right_column(:parent))))
         end
 
         def no_duplicates_for_columns?
@@ -165,39 +173,35 @@ module Sequel
             end
           end
         end
-
+        
         # Rebuilds the left & rights if unset or invalid.  Also very useful for converting from acts_as_tree.
         def rebuild!
+
+          scope = lambda{}
+          # TODO: add scope stuff
+          
           # Don't rebuild a valid tree.
           return true if valid?
-
-#          scope = lambda{}
-#          if acts_as_nested_set_options[:scope]
-#            scope = lambda{|node|
-#              scope_column_names.inject(""){|str, column_name|
-#                str << "AND #{connection.quote_column_name(column_name)} = #{connection.quote(node.send(column_name.to_sym))} "
-#              }
-#            }
-#          end
+          indices = {}
           
-#          indices = {}
-#
-#          set_left_and_rights = lambda do |node|
-#            # set left
-#            node[left_column_name] = indices[scope.call(node)] += 1
-#            # find
-#            find(:all, :conditions => ["#{quoted_parent_column_name} = ? #{scope.call(node)}", node], :order => "#{quoted_left_column_name}, #{quoted_right_column_name}, id").each{|n| set_left_and_rights.call(n) }
-#            # set right
-#            node[right_column_name] = indices[scope.call(node)] += 1
-#            node.save!
-#          end
-#
-#          # Find root node(s)
-#          root_nodes = find(:all, :conditions => "#{quoted_parent_column_name} IS NULL", :order => "#{quoted_left_column_name}, #{quoted_right_column_name}, id").each do |root_node|
-#            # setup index for this scope
-#            indices[scope.call(root_node)] ||= 0
-#            set_left_and_rights.call(root_node)
-#          end
+          move_to_child_of_lambda = lambda do |parent_node|
+            # Set left
+            parent_node[nested_set_options[:left_column]] = indices[scope.call(parent_node)] += 1
+            # Gather child noodes of parend_node and iterate by children
+            parent_node.children.order(:id).all.each do |child_node|
+              move_to_child_of_lambda.call(child_node)
+            end
+            # Set right
+            parent_node[nested_set_options[:right_column]] = indices[scope.call(parent_node)] += 1
+            parent_node.save
+          end
+
+          # Gatcher root nodes and iterate by them
+          self.roots.all.each do |root_node|
+            # setup index for this scope
+            indices[scope.call(root_node)] ||= 0
+            move_to_child_of_lambda.call(root_node)
+          end
         end
       end
 
@@ -220,12 +224,12 @@ module Sequel
 
         # Getter of the left column
         def left
-          self[self.nested_set_options[:left_column]]
+          self[self.nested_set_options[:left_column]] || 0
         end
 
         # Getter of the right column
         def right
-          self[self.nested_set_options[:right_column]]
+          self[self.nested_set_options[:right_column]] || 0
         end
 
         # Setter of the parent column
@@ -300,8 +304,7 @@ module Sequel
 
         # Returns dataset for its immediate children
         def children
-          self.class.subset(:_children_subset, self.class.qualified_parent_column => self.id) unless self.respond_to?(:_children_subset)
-          dataset.nested._children_subset
+          dataset.nested.filter(self.class.qualified_parent_column => self.id)
         end
 
         # Returns dataset for all parents
@@ -397,9 +400,15 @@ module Sequel
           !((left <= target.left && right >= target.left) or (left <= target.right && right >= target.right))
         end
 
+        # You can pass block that will have
         def to_text
           self_and_descendants.map do |node|
-            "#{'*'*(node.level+1)} #{node.class.inspect} (#{node.parent_id.inspect}, #{node.left}, #{node.right})"
+            if block_given?
+              inspect = yield(node)
+            else
+              inspect = node.class.inspect
+            end
+            "#{'*'*(node.level+1)} #{inspect} (#{node.parent_id.inspect}, #{node.left}, #{node.right})"
           end.join("\n")
         end
 
