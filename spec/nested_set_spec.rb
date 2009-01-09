@@ -1,7 +1,8 @@
 require File.join(File.dirname(__FILE__), "spec_helper")
 
 describe "Sequel Nested Set Class" do
-  before(:all) do
+  before(:each) do
+    ClientMock.reset
     @root = Client.filter(:name  => 'Top Level').first
     @node1 = Client.filter(:name  => 'Child 1').first
     @node2 = Client.filter(:name  => 'Child 2').first
@@ -13,7 +14,6 @@ describe "Sequel Nested Set Class" do
   it "should have nested_set_options" do
     Client.should respond_to :nested_set_options
   end
-
 
   it "should have default options :left_column, :right_column, :parent_column, :dependent and :scope" do
     Client.nested_set_options[:left_column].should == :lft
@@ -52,7 +52,8 @@ end
 
 describe "Sequel Nested Set Instance" do
 
-  before(:all) do
+  before(:each) do
+    ClientMock.reset
     @root = Client.filter(:name  => 'Top Level').first
     @node1 = Client.filter(:name  => 'Child 1').first
     @node2 = Client.filter(:name  => 'Child 2').first
@@ -233,8 +234,57 @@ describe "Sequel Nested Set Instance" do
     @node1.is_or_is_ancestor_of?(@node1).should be_true
   end
 
+  it "should have node2 with left sibling as node1 and node3 with left sibling node2" do
+    @node2.left_sibling.should == @node1
+    @node3.left_sibling.should == @node2
+  end
+
+  it "should have root without left sibling" do
+    @root.left_sibling.should be_nil
+  end
+
+  it "should have node2_1 without left sibling" do
+    @node2_1.left_sibling.should be_nil
+  end
+
+  it "should have node1 without left sibling" do
+    @node1.left_sibling.should be_nil
+  end
+
+  it "should have node2 with right sibling as node3 and node1 with right sibling node2" do
+    @node2.right_sibling.should == @node3
+    @node1.right_sibling.should == @node2
+  end
+
+  it "should have root with right sibling as root2 and root2 with without right sibling" do
+    @root.right_sibling.should == @root2
+    @root2.right_sibling.should be_nil
+  end
+
+  it "should have node2_1 without right sibling" do
+    @node2_1.right_sibling.should be_nil
+  end
+
+  it "should have node3 without right sibling" do
+    @node3.right_sibling.should be_nil
+  end
+
   it "should have to_text method" do
     @root.to_text.should == "* Client (nil, 1, 10)\n** Client (1, 2, 3)\n** Client (1, 4, 7)\n*** Client (3, 5, 6)\n** Client (1, 8, 9)"
+  end
+
+  it "should node2 be able to move left" do
+    @node2.move_left
+    @node2.left_sibling.should be_nil
+    @node2.right_sibling.should == @node1.refresh
+    Client.valid?.should be_true
+  end
+
+  it "should node2 be able to move right" do
+    @node2.move_right
+    @node2.right_sibling.should be_nil
+    @node2.left_sibling.should == @node3.refresh
+    Client.valid?.should be_true
   end
 
 end

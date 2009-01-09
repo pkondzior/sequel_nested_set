@@ -99,27 +99,28 @@ module Sequel
           "#{table_name}__#{self.nested_set_options[:parent_column]}".to_sym
         end
 
-        def qualified_parent_column_literal(table_name = self.implicit_table_name)
-          self.dataset.literal(qualified_parent_column(table_name))
+        def qualified_parent_column_literal
+          self.dataset.literal(self.nested_set_options[:parent_column])
         end
 
         def qualified_left_column(table_name = self.implicit_table_name)
           "#{table_name}__#{self.nested_set_options[:left_column]}".to_sym
         end
 
-        def qualified_left_column_literal(table_name = self.implicit_table_name)
-          self.dataset.literal(qualified_left_column(table_name))
+        def qualified_left_column_literal
+          self.dataset.literal(self.nested_set_options[:left_column])
         end
 
         def qualified_right_column(table_name = self.implicit_table_name)
           "#{table_name}__#{self.nested_set_options[:right_column]}".to_sym
         end
 
-        def qualified_right_column_literal(table_name = self.implicit_table_name)
-          self.dataset.literal(qualified_right_column(table_name))
+        def qualified_right_column_literal
+          self.dataset.literal(self.nested_set_options[:right_column])
         end
 
         def valid?
+          DB.logger.info { "#{self.left_and_rights_valid?} && #{self.no_duplicates_for_columns?} && #{self.all_roots_valid?}" }
           self.left_and_rights_valid? && self.no_duplicates_for_columns? && self.all_roots_valid?
         end
 
@@ -139,7 +140,7 @@ module Sequel
           #            connection.quote_column_name(c)
           #          end.push(nil).join(", ")
           [self.qualified_left_column, self.qualified_right_column].all? do |column|
-            self.dataset.select(column, :count[column]).group(column).having(:count[column] > 1).nil?
+            self.dataset.select(column, :count[column]).group(column).having(:count[column] > 1).first.nil?
           end
         end
 
@@ -356,6 +357,38 @@ module Sequel
           siblings.filter(self.class.qualified_left_column > left).first
         end
 
+
+        # Shorthand method for finding the left sibling and moving to the left of it.
+        def move_left
+          self.move_to_left_of(self.left_sibling)
+        end
+
+        # Shorthand method for finding the right sibling and moving to the right of it.
+        def move_right
+          self.move_to_right_of(self.right_sibling)
+        end
+
+        # Move the node to the left of another node (you can pass id only)
+        def move_to_left_of(node)
+          self.move_to(node, :left)
+        end
+
+        # Move the node to the left of another node (you can pass id only)
+        def move_to_right_of(node)
+          self.move_to(node, :right)
+        end
+
+        # Move the node to the child of another node (you can pass id only)
+        def move_to_child_of(node)
+          self.move_to(node, :child)
+        end
+
+        # Move the node to root nodes
+        def move_to_root
+          self.move_to(nil, :root)
+        end
+
+        # Check if node move is possible for specific target
         def move_possible?(target)
           self != target && # Can't target self
           same_scope?(target) && # can't be in different scopes
@@ -425,7 +458,7 @@ module Sequel
               when :left;   target.left
               when :right;  target.right + 1
               when :root;   1
-              else raise ActiveRecord::ActiveRecordError, "Position should be :child, :left, :right or :root ('#{position}' received)."
+              else raise Error, "Position should be :child, :left, :right or :root ('#{position}' received)."
             end
 
             if bound > self.right
@@ -434,6 +467,8 @@ module Sequel
             else
               other_bound = self.left - 1
             end
+            
+            DB.logger.info { "#{bound} == #{self.right} || #{bound} == #{self.left}" }
 
             # there would be no change
             return if bound == self.right || bound == self.left
@@ -445,25 +480,26 @@ module Sequel
             new_parent = case position
               when :child;  target.id
               when :root;   nil
-              else          target.right
+              else          target.parent_id
             end
 
-            self.dataset.update_sql(
+            # TODO : scope stuff for update
+            self.dataset.update(
                "#{self.class.qualified_left_column_literal} = CASE " +
                 "WHEN #{self.class.qualified_left_column_literal} BETWEEN #{a} AND #{b} " +
-                  "THEN #{self.class.qualified_left_column_literal} + #{a} - #{b} " +
-                "WHEN #{self.class.qualified_left_column_literal} BETWEEN #{a} AND #{b} " +
-                  "THEN #{self.class.qualified_left_column_literal} + #{a} - #{c}" +
-                "ELSE #{self.class.qualified_left_column} END, " +
-              "#{self.class.qualified_right_column_literal} = CASE " +
+                  "THEN #{self.class.qualified_left_column_literal} + #{d} - #{b} " +
+                "WHEN #{self.class.qualified_left_column_literal} BETWEEN #{c} AND #{d} " +
+                  "THEN #{self.class.qualified_left_column_literal} + #{a} - #{c} " +
+                "ELSE #{self.class.qualified_left_column_literal} END, " +
+              "#{self.class.qualified_right_column_literal} = (CASE " +
                 "WHEN #{self.class.qualified_right_column_literal} BETWEEN #{a} AND #{b} " +
                   "THEN #{self.class.qualified_right_column_literal} + #{d} - #{b} " +
                 "WHEN #{self.class.qualified_right_column_literal} BETWEEN #{c} AND #{d} " +
                   "THEN #{self.class.qualified_right_column_literal} + #{a} - #{c} " +
-                "ELSE #{self.class.qualified_right_column_literal} END, " +
-              "#{self.class.qualified_parent_column_literal} = CASE " +
-                "WHEN #{self.class.qualified_parent_column_literal} = #{self.id} THEN #{new_parent} " +
-                "ELSE #{self.class.qualified_parent_column_literal} END"
+                "ELSE #{self.class.qualified_right_column_literal} END), " +
+              "#{self.class.qualified_parent_column_literal} = (CASE " +
+                "WHEN #{self.primary_key} = #{self.id} THEN #{new_parent} " +
+                "ELSE #{self.class.qualified_parent_column_literal} END)"
             )
             target.refresh if target
             self.refresh
