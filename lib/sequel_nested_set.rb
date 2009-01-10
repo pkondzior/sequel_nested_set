@@ -443,7 +443,7 @@ module Sequel
         # The block arguments are |item, level|. The remaining arguments for
         # this method are for recursion and should not normally be given.
         def to_nested_a(flat = false, mover = nil, descendants = nil, level = self.level, &block)
-          descendants ||= self.descendants
+          descendants ||= self.descendants.all
           array = [ block_given? ? yield(self, level) : self ]
 
           while not descendants.empty?

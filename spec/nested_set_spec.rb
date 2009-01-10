@@ -17,7 +17,6 @@ describe "Sequel Nested Set" do
     describe "ClassMethods" do
 
       it "should have nested_set_options" do
-        debugger
         Client.should respond_to(:nested_set_options)
       end
 
@@ -61,6 +60,14 @@ describe "Sequel Nested Set" do
 
       it "should have to_text method that returns whole tree from all root nodes as text and should be able to pass block" do
         Client.to_text { |node| node.name }.should == "* Top Level (nil, 1, 10)\n** Child 1 (1, 2, 3)\n** Child 2 (1, 4, 7)\n*** Child 2.1 (3, 5, 6)\n** Child 3 (1, 8, 9)\n* Top Level 2 (nil, 11, 12)"
+      end
+
+      it "should have to_nested_a method that returns nested array of all nodes from roots to leaves" do
+        Client.to_nested_a.should == [[@root, [@node1], [@node2, [@node2_1]], [@node3]], [@root2]]
+      end
+
+      it "should have to_nested_a method that can pass block with node and level" do
+        Client.to_nested_a { |node, level| level }.should == [[0, [1], [1, [2]], [1]], [0]]
       end
     end
 
@@ -198,14 +205,6 @@ describe "Sequel Nested Set" do
         @node1.right_sibling.should == @node2
         @node2.right_sibling.should == @node3
         @node3.right_sibling.should be_nil
-      end
-
-      it "should @root and @node be in same scope" do
-        @root.same_scope?(@node).should be_true
-      end
-
-      it "should @root and @root_in_other_scope be in different scope" do
-    
       end
 
       it "should have node_x.is_or_is_descendant_of?(node_y) that will return proper boolean value" do
@@ -505,6 +504,14 @@ describe "Sequel Nested Set" do
         n4.move_to_child_of(n2)
         Client.valid?.should be_true
       end
+
+      it "should have to_nested_a method that returns nested array of all nodes from roots to leaves" do
+        @root.to_nested_a.should == [@root, [@node1], [@node2, [@node2_1]], [@node3]]
+      end
+
+      it "should have to_nested_a method that can pass block with node and level" do
+        @root.to_nested_a { |node, level| level }.should == [0, [1], [1, [2]], [1]]
+      end
     end
   end
 
@@ -531,6 +538,14 @@ describe "Sequel Nested Set" do
       end
 
       it "should have equal nodes in the same scope" do
+
+      end
+
+      it "should @root and @node be in same scope" do
+#        @root.same_scope?(@node).should be_true
+      end
+
+      it "should @root and @root_in_other_scope be in different scope" do
 
       end
 
