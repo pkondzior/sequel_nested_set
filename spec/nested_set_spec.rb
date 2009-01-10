@@ -78,7 +78,6 @@ describe "Sequel Nested Set" do
 
       it "should have parent, left, right setter based on nested set config" do
         node = Client.new
-        debugger
         node.send(:left=, 1)
         node.send(:right=, 2)
         node.send(:parent_id=, 69)
