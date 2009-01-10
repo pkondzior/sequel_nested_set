@@ -202,6 +202,14 @@ module Sequel
             move_to_child_of_lambda.call(root_node)
           end
         end
+
+        def to_text(&block)
+          text = ""
+          self.roots.each do |root|
+            text << root.to_text(&block)
+          end
+          text
+        end
       end
 
       module InstanceMethods

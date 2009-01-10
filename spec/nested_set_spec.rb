@@ -53,19 +53,17 @@ describe "Sequel Nested Set" do
       it "should have root" do
         Client.root.should == @root
       end
+
+      it "should have to_text method that returns whole tree from all root nodes as text" do
+        Client.to_text.should == "* Client (nil, 1, 10)\n** Client (1, 2, 3)\n** Client (1, 4, 7)\n*** Client (3, 5, 6)\n** Client (1, 8, 9)* Client (nil, 11, 12)"
+      end
+
+      it "should have to_text method that returns whole tree from all root nodes as text and should be able to pass block" do
+        Client.to_text { |node| node.name }.should == "* Top Level (nil, 1, 10)\n** Child 1 (1, 2, 3)\n** Child 2 (1, 4, 7)\n*** Child 2.1 (3, 5, 6)\n** Child 3 (1, 8, 9)* Top Level 2 (nil, 11, 12)"
+      end
     end
 
     describe "InstanceMethods" do
-
-      #    before(:each) do
-      #      prepare_nested_set_data
-      #      @root = Client.filter(:name  => 'Top Level').first
-      #      @node1 = Client.filter(:name  => 'Child 1').first
-      #      @node2 = Client.filter(:name  => 'Child 2').first
-      #      @node2_1 = Client.filter(:name  => 'Child 2.1').first
-      #      @node3 = Client.filter(:name => 'Child 3').first
-      #      @root2 = Client.filter(:name  => 'Top Level 2').first
-      #    end
 
       it "should have nested_set_options" do
         @root.class.should respond_to(:nested_set_options)
@@ -274,8 +272,12 @@ describe "Sequel Nested Set" do
         @node3.right_sibling.should be_nil
       end
 
-      it "should have to_text method" do
+      it "should have to_text method that returns whole tree of instance node as text" do
         @root.to_text.should == "* Client (nil, 1, 10)\n** Client (1, 2, 3)\n** Client (1, 4, 7)\n*** Client (3, 5, 6)\n** Client (1, 8, 9)"
+      end
+
+      it "should have to_text method that returns whole tree of instance node as text and should be able to pass block" do
+        @root.to_text { |node| node.name }.should == "* Top Level (nil, 1, 10)\n** Child 1 (1, 2, 3)\n** Child 2 (1, 4, 7)\n*** Child 2.1 (3, 5, 6)\n** Child 3 (1, 8, 9)"
       end
 
       it "should node2 be able to move to the left" do
