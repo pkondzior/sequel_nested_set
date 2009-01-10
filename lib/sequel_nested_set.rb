@@ -212,6 +212,22 @@ module Sequel
           end
           text.join("\n")
         end
+
+        # Returns the entire set as a nested array. If flat is true then a flat
+        # array is returned instead. Specify mover to exclude any impossible
+        # moves. Pass a block to perform an operation on each item. The block
+        # arguments are |item, level|.
+        def to_nested_a(flat = false, mover = nil, &block)
+          descendants = self.nested.all
+          array = []
+
+          while not descendants.empty?
+            items = descendants.shift.to_nested_a(flat, mover, descendants, 0, &block)
+            array.send flat ? 'concat' : '<<', items
+          end
+
+          return array
+        end
       end
 
       module InstanceMethods
@@ -419,6 +435,25 @@ module Sequel
             end
             "#{'*'*(node.level+1)} #{inspect} (#{node.parent_id.inspect}, #{node.left}, #{node.right})"
           end.join("\n")
+        end
+
+        # Returns self and its descendants as a nested array. If flat is true
+        # then a flat array is returned instead. Specify mover to exclude any
+        # impossible moves. Pass a block to perform an operation on each item.
+        # The block arguments are |item, level|. The remaining arguments for
+        # this method are for recursion and should not normally be given.
+        def to_nested_a(flat = false, mover = nil, descendants = nil, level = self.level, &block)
+          descendants ||= self.descendants
+          array = [ block_given? ? yield(self, level) : self ]
+
+          while not descendants.empty?
+            break unless descendants.first.parent_id == self.id
+            item = descendants.shift
+            items = item.to_nested_a(flat, mover, descendants, level + 1, &block)
+            array.send flat ? 'concat' : '<<', items if mover.nil? or mover.new? or mover.move_possible?(item)
+          end
+
+          return array
         end
 
         protected

@@ -17,6 +17,7 @@ describe "Sequel Nested Set" do
     describe "ClassMethods" do
 
       it "should have nested_set_options" do
+        debugger
         Client.should respond_to(:nested_set_options)
       end
 
