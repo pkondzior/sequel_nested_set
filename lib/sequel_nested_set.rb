@@ -67,6 +67,8 @@ module Sequel
 
         model.before_create { set_default_left_and_right }
         model.before_destroy { prune_from_tree }
+
+        model.set_restricted_columns :left, :right, :parent_id
       end
 
       module DatasetMethods
@@ -204,11 +206,11 @@ module Sequel
         end
 
         def to_text(&block)
-          text = ""
+          text = []
           self.roots.each do |root|
             text << root.to_text(&block)
           end
-          text
+          text.join("\n")
         end
       end
 

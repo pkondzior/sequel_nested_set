@@ -55,11 +55,11 @@ describe "Sequel Nested Set" do
       end
 
       it "should have to_text method that returns whole tree from all root nodes as text" do
-        Client.to_text.should == "* Client (nil, 1, 10)\n** Client (1, 2, 3)\n** Client (1, 4, 7)\n*** Client (3, 5, 6)\n** Client (1, 8, 9)* Client (nil, 11, 12)"
+        Client.to_text.should == "* Client (nil, 1, 10)\n** Client (1, 2, 3)\n** Client (1, 4, 7)\n*** Client (3, 5, 6)\n** Client (1, 8, 9)\n* Client (nil, 11, 12)"
       end
 
       it "should have to_text method that returns whole tree from all root nodes as text and should be able to pass block" do
-        Client.to_text { |node| node.name }.should == "* Top Level (nil, 1, 10)\n** Child 1 (1, 2, 3)\n** Child 2 (1, 4, 7)\n*** Child 2.1 (3, 5, 6)\n** Child 3 (1, 8, 9)* Top Level 2 (nil, 11, 12)"
+        Client.to_text { |node| node.name }.should == "* Top Level (nil, 1, 10)\n** Child 1 (1, 2, 3)\n** Child 2 (1, 4, 7)\n*** Child 2.1 (3, 5, 6)\n** Child 3 (1, 8, 9)\n* Top Level 2 (nil, 11, 12)"
       end
     end
 
@@ -70,7 +70,7 @@ describe "Sequel Nested Set" do
       end
 
       it "should have parent, left, right getter based on nested set config" do
-        node = Client.new(:parent_id => nil, :lft => 1, :rgt => 2)
+        node = Client.new.update_all(:parent_id => nil, :lft => 1, :rgt => 2)
         node.left.should == node[node.class.nested_set_options[:left_column]]
         node.right.should == node[node.class.nested_set_options[:right_column]]
         node.parent_id.should == node[node.class.nested_set_options[:parent_column]]
@@ -78,6 +78,7 @@ describe "Sequel Nested Set" do
 
       it "should have parent, left, right setter based on nested set config" do
         node = Client.new
+        debugger
         node.send(:left=, 1)
         node.send(:right=, 2)
         node.send(:parent_id=, 69)
@@ -93,7 +94,7 @@ describe "Sequel Nested Set" do
       end
 
       it "Client.new with {:left => 1, :right => 2, :parent_id => nil} should raise NoMethodError exception" do
-    
+        lambda { Client.new({:left => 1, :right => 2, :parent_id => nil}) }.should raise_error(Sequel::Error)
       end
 
       it "should have nested_set_options equal to Model.nested_set_options" do
