@@ -68,7 +68,7 @@ module Sequel
         model.before_create { set_default_left_and_right }
         model.before_destroy { prune_from_tree }
 
-        model.set_restricted_columns :left, :right, :parent_id
+        model.set_restricted_columns(*([:left, :right, :parent_id, options[:parent_column], options[:left_column], options[:right_column]].uniq))
       end
 
       module DatasetMethods

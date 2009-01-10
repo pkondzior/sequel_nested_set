@@ -93,6 +93,12 @@ describe "Sequel Nested Set" do
         Client.new.protected_methods.include?("parent_id=").should be_true
       end
 
+      it "shoud have faild on new when passing keys configured as right_column, left_column, parent_column" do
+        lambda { Client.new(Client.nested_set_options[:left_column] => 1) }.should raise_error(Sequel::Error)
+        lambda { Client.new(Client.nested_set_options[:right_column] => 2) }.should raise_error(Sequel::Error)
+        lambda { Client.new(Client.nested_set_options[:parent_column] => nil) }.should raise_error(Sequel::Error)
+      end
+
       it "Client.new with {:left => 1, :right => 2, :parent_id => nil} should raise NoMethodError exception" do
         lambda { Client.new({:left => 1, :right => 2, :parent_id => nil}) }.should raise_error(Sequel::Error)
       end
