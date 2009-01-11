@@ -1,18 +1,7 @@
 ##############################################################################
-# Constants
-##############################################################################
- 
-#PluginName = "sequel_nested_set"
-#Version = "0.9"
-#Title = "Sequel Nested Set Plugin"
-#Summary = "Nested set implementation for Sequel Models"
-#Authors = "Paweł Kondzior"
-#Emails = "kondzior.p@gmail.com"
-#Homepage = "http://sequelns.rubyforge.org"
- 
-##############################################################################
 # Gem Management
 ##############################################################################
+
 require "rake"
 require "rake/clean"
 require "rake/gempackagetask"
@@ -22,7 +11,12 @@ require "fileutils"
 include FileUtils
  
 CLEAN.include ["**/.*.sw?", "pkg/*", ".config", "doc/*", "coverage/*"]
- 
+
+
+##############################################################################
+# Load Gemspec Data
+##############################################################################
+
 gemspec_data = File.read("sequel_nested_set.gemspec")
 spec = nil
 Thread.new { spec = eval("$SAFE = 3\n#{gemspec_data}") }.join
@@ -32,7 +26,11 @@ task :default => [:package]
 task :package => [:clean]
  
 task :doc => [:rdoc]
- 
+
+##############################################################################
+# RDoc Task
+##############################################################################
+
 Rake::RDocTask.new do |rdoc|
   rdoc.rdoc_dir = "doc/rdoc"
   rdoc.options += spec.rdoc_options
@@ -46,7 +44,12 @@ Rake::GemPackageTask.new(spec) do |p|
   p.need_tar = true
   p.gem_spec = spec
 end
- 
+
+
+##############################################################################
+# Rubyforge Managment Tasks
+##############################################################################
+
 task :release => [:package] do
   sh %{rubyforge login}
   sh %{rubyforge add_release sequel #{spec.name} #{Version} pkg/#{spec.name}-#{spec.version}.tgz}
