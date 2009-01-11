@@ -119,19 +119,3 @@ Spec::Rake::SpecTask.new("specs_html") do |spec_task|
   spec_task.spec_opts = ["--format", "html"]
   spec_task.spec_files = Dir["spec/**/*_spec.rb"].sort
 end
- 
-##############################################################################
-# Statistics
-##############################################################################
- 
-STATS_DIRECTORIES = [
-  %w(Code lib/),
-  %w(Spec spec/)
-].collect { |name, dir| [ name, "./#{dir}" ] }.select { |name, dir| File.directory?(dir) }
- 
-desc "Report code statistics (KLOCs, etc) from the application"
-task :stats do
-  require "extra/stats"
-  verbose = true
-  CodeStatistics.new(*STATS_DIRECTORIES).to_s
-end
