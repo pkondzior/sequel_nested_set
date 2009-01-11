@@ -2,13 +2,13 @@
 # Constants
 ##############################################################################
  
-PluginName = "sequel_nested_set"
-Version = "0.9"
-Title = "Nested Set Sequel Plugin"
-Summary = "Sequel Nested Set Plugin"
-Authors = "Brian Cooke"
-Emails = "kondzior.p@gmail.com"
-Homepage = "http://sequel.rubyforge.org"
+#PluginName = "sequel_nested_set"
+#Version = "0.9"
+#Title = "Sequel Nested Set Plugin"
+#Summary = "Nested set implementation for Sequel Models"
+#Authors = "Paweł Kondzior"
+#Emails = "kondzior.p@gmail.com"
+#Homepage = "http://sequelns.rubyforge.org"
  
 ##############################################################################
 # Gem Management
@@ -23,15 +23,11 @@ include FileUtils
  
 CLEAN.include ["**/.*.sw?", "pkg/*", ".config", "doc/*", "coverage/*"]
  
-RDocOptions = [
-  "--quiet", "--title", Title,
-  "--opname", "index.html",
-  "--line-numbers",
-  "--main", "README",
-  "--inline-source"
-]
+gemspec_data = File.read("sequel_nested_set.gemspec")
+spec = nil
+Thread.new { spec = eval("$SAFE = 3\n#{gemspec_data}") }.join
  
-desc "Packages up the Sequel Plugin: #{PluginName}."
+desc "Packages up the Sequel Plugin: #{spec.name}."
 task :default => [:package]
 task :package => [:clean]
  
@@ -39,34 +35,11 @@ task :doc => [:rdoc]
  
 Rake::RDocTask.new do |rdoc|
   rdoc.rdoc_dir = "doc/rdoc"
-  rdoc.options += RDocOptions
+  rdoc.options += spec.rdoc_options
   rdoc.main = "README"
-  rdoc.title = Title
-  rdoc.rdoc_files.add ["README", "COPYING", "lib/#{PluginName}.rb", "lib/**/*.rb"]
-end
- 
-spec = Gem::Specification.new do |s|
-  s.name = PluginName
-  s.version = Version
-  s.platform = Gem::Platform::RUBY
-  s.has_rdoc = true
-  s.extra_rdoc_files = ["README", "CHANGELOG", "COPYING"]
-  s.rdoc_options += RDocOptions# +
-    #["--exclude", "^(examples|extras)\/", "--exclude", "lib/sequel.rb"]
-  s.summary = Summary
-  s.description = Summary
-  s.author = Authors
-  s.email = Emails
-  s.homepage = Homepage
-  # change this to the plugin name, if the plugin has command line portion
-  #s.executables = ["sequel"]
- 
-  s.add_dependency("sequel_model")
-  
-  s.files = %w(COPYING README Rakefile) + Dir.glob("{bin,doc,spec,lib}/**/*")
-  
-  s.require_path = "lib"
-  s.bindir = "bin"
+  rdoc.title = spec.name
+  rdoc.rdoc_files.add ["lib/*.rb", "lib/**/*.rb"]
+  rdoc.rdoc_files.add spec.extra_rdoc_files
 end
  
 Rake::GemPackageTask.new(spec) do |p|
@@ -76,28 +49,28 @@ end
  
 task :release => [:package] do
   sh %{rubyforge login}
-  sh %{rubyforge add_release sequel #{PluginName} #{Version} pkg/#{PluginName}-#{Version}.tgz}
-  sh %{rubyforge add_file sequel #{PluginName} #{Version} pkg/#{PluginName}-#{Version}.gem}
+  sh %{rubyforge add_release sequel #{spec.name} #{Version} pkg/#{spec.name}-#{spec.version}.tgz}
+  sh %{rubyforge add_file sequel #{spec.name} #{Version} pkg/#{spec.name}-#{spec.version}.gem}
 end
  
 task :install do
   sh %{rake package}
-  sh %{sudo gem install pkg/#{PluginName}-#{Version}.gem}
+  sh %{sudo gem install pkg/#{spec.name}-#{spec.version}.gem}
 end
  
 task :install_no_docs do
   sh %{rake package}
-  sh %{sudo gem install pkg/#{PluginName}-#{Version}.gem --no-rdoc --no-ri}
+  sh %{sudo gem install pkg/#{spec.name}-#{spec.version}.gem --no-rdoc --no-ri}
 end
  
 task :uninstall => [:clean] do
-  sh %{sudo gem uninstall #{PluginName}}
+  sh %{sudo gem uninstall #{spec.name}}
 end
  
 desc "Update docs and upload to rubyforge.org"
 task :doc_rforge do
   sh %{rake doc}
-  sh %{scp -r doc/rdoc/* ciconia@rubyforge.org:/var/www/gforge-projects/sequel/plugins/#{PluginName}}
+  sh %{scp -r doc/rdoc/* ciconia@rubyforge.org:/var/www/gforge-projects/sequel/plugins/#{spec.name}}
 end
  
 ##############################################################################
