@@ -12,6 +12,6 @@ Gem::Specification.new do |s|
   s.test_files = ["spec/nested_set_spec.rb", "spec/rcov.opts", "spec/spec.opts", "spec/spec_helper.rb"]
   s.rdoc_options = ["--quiet", "--title", "Sequel Nested Set", "--opname", "index.html", "--line-numbers", "--main", "README", "--inline-source", "--charset", "utf8"]
   s.extra_rdoc_files = ["TODO", "COPYING", "README"]
-  s.add_dependency("sequel", ["> 2.8.0"])
+  s.add_dependency("sequel", [">= 2.8.0"])
 end
 
