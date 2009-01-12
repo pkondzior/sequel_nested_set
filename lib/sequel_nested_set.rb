@@ -521,8 +521,6 @@ module Sequel
               other_bound = self.left - 1
             end
             
-            DB.logger.info { "#{bound} == #{self.right} || #{bound} == #{self.left}" }
-
             # there would be no change
             return if bound == self.right || bound == self.left
 
